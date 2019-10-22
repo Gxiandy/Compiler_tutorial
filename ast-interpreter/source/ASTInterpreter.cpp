@@ -1,5 +1,3 @@
-//==--- tools/clang-check/ClangInterpreter.cpp - Clang Interpreter tool --------------===//
-//===----------------------------------------------------------------------===//
 
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/EvaluatedExprVisitor.h"
@@ -13,50 +11,54 @@ using namespace std;
 #include "Environment.h"
 //#define DEBUG 1
 class InterpreterVisitor : 
-   public EvaluatedExprVisitor<InterpreterVisitor> {
+   	public EvaluatedExprVisitor<InterpreterVisitor> {
 public:
-   explicit InterpreterVisitor(const ASTContext &context, Environment * env)
-   : EvaluatedExprVisitor(context), mEnv(env) {}
-   virtual ~InterpreterVisitor() {}
+	explicit InterpreterVisitor(const ASTContext &context, Environment * env)
+	: EvaluatedExprVisitor(context), mEnv(env) {}
+	virtual ~InterpreterVisitor() {}
 
-   virtual void VisitBinaryOperator (BinaryOperator * bop) {
+	virtual void VisitBinaryOperator (BinaryOperator * bop) {
 		#ifdef DEBUG
 			std::cout<<"Enter BOP"<<std::endl;
 		#endif
 		if(mEnv->isReturn()) return;
 		VisitStmt(bop);
 		mEnv->binop(bop);
-   }
-   //单目运算符
+   	}
+
+   /// -a,*a
    virtual void VisitUnaryOperator (UnaryOperator * uop){
-	   #ifdef DEBUG
+	   	#ifdef DEBUG
 			std::cout<<"Enter UOP"<<std::endl;
 		#endif
 		if(mEnv->isReturn()) return;
 		VisitStmt(uop);
 		mEnv->unaryop(uop);
    }
+
    virtual void VisitDeclRefExpr(DeclRefExpr * expr) {
 		#ifdef DEBUG
 			std::cout<<"Enter DeclRefExpr"<<std::endl;
 		#endif
-	   if(mEnv->isReturn()) return;
-	   VisitStmt(expr);
-	   mEnv->declref(expr);
-	   #ifdef DEBUG
+		if(mEnv->isReturn()) return;
+		VisitStmt(expr);
+		mEnv->declref(expr);
+		#ifdef DEBUG
 			std::cout<<"Leave DeclRefExpr"<<std::endl;
 		#endif
    }
+
    virtual void VisitCastExpr(CastExpr * expr) {
-	   #ifdef DEBUG
+	   	#ifdef DEBUG
 			std::cout<<"Enter CAST"<<std::endl;
 		#endif
-	   if(mEnv->isReturn()) return;
-	   VisitStmt(expr);
-	   mEnv->cast(expr);
+		if(mEnv->isReturn()) return;
+		VisitStmt(expr);
+		mEnv->cast(expr);
    }
+
    virtual void VisitCallExpr(CallExpr * call) {
-	   #ifdef DEBUG
+	   	#ifdef DEBUG
 			std::cout<<"Enter CALL"<<std::endl;
 		#endif
 		if(mEnv->isReturn()) return;
@@ -64,21 +66,20 @@ public:
 		mEnv->call(call);
 		FunctionDecl * callee = call->getDirectCallee();
 		if(callee->hasBody()){                                                
-        VisitStmt(callee->getBody());
-		mEnv->setReturn();
-       }
+        	VisitStmt(callee->getBody());
+			mEnv->setReturn();
+       	}
+	}
 
-	  
-   }
-   virtual void VisitDeclStmt(DeclStmt * declstmt) {
-	   #ifdef DEBUG
+   	virtual void VisitDeclStmt(DeclStmt * declstmt) {
+	   	#ifdef DEBUG
 			std::cout<<"Enter DECL"<<std::endl;
 		#endif
-	   if(mEnv->isReturn()) return;
-	   mEnv->decl(declstmt);
-   }
-   virtual void VisitIntegerLiteral(IntegerLiteral* integer){
-	   #ifdef DEBUG
+	   	if(mEnv->isReturn()) return;
+	   	mEnv->decl(declstmt);
+   	}
+   	virtual void VisitIntegerLiteral(IntegerLiteral* integer){
+	   	#ifdef DEBUG
 			std::cout<<"Enter IntegerLiteral"<<std::endl;
 		#endif
 		if(mEnv->isReturn()) return;
@@ -87,8 +88,8 @@ public:
 			std::cout<<"Leave IntegerLiteral"<<std::endl;
 		#endif
    }
-   virtual void VisitArraySubscriptExpr(ArraySubscriptExpr *arrayexpr)
-   {
+
+   virtual void VisitArraySubscriptExpr(ArraySubscriptExpr *arrayexpr){
 		#ifdef DEBUG
 			std::cout<<"Enter ArraySubscriptExpr"<<std::endl;
 		#endif
@@ -96,8 +97,9 @@ public:
 		VisitStmt(arrayexpr);
 		mEnv->array(arrayexpr);
    }
+
    virtual void VisitIfStmt(IfStmt* ifstmt){
-	   #ifdef DEBUG
+	   	#ifdef DEBUG
 			std::cout<<"Enter IF"<<std::endl;
 		#endif
 		if(mEnv->isReturn()) return;
@@ -111,8 +113,7 @@ public:
 			}
 			else if(isa<ReturnStmt>(ifstmt->getThen())){
 				ReturnStmt * ret= dyn_cast<ReturnStmt>(ifstmt->getThen());
-				this->VisitReturnStmt(ret);
-				
+				this->VisitReturnStmt(ret);	
 			}
 			else{
                 VisitStmt(ifstmt->getThen());
@@ -122,18 +123,19 @@ public:
 			if(ifstmt->getElse())
 				if(isa<BinaryOperator>(ifstmt->getElse())){
 					BinaryOperator * bop = dyn_cast<BinaryOperator>(ifstmt->getElse());
-				this->VisitBinaryOperator(bop);
+					this->VisitBinaryOperator(bop);
 				}
 				else if(isa<ReturnStmt>(ifstmt->getElse())){
-				ReturnStmt * ret= dyn_cast<ReturnStmt>(ifstmt->getElse());
-				this->VisitReturnStmt(ret);
+					ReturnStmt * ret= dyn_cast<ReturnStmt>(ifstmt->getElse());
+					this->VisitReturnStmt(ret);
 				
 				}
 				else{
 					VisitStmt(ifstmt->getElse());
-        }
-    }
-   }
+        		}
+    		}
+   	}
+
     virtual void VisitWhileStmt(WhileStmt *whilestmt) {
 		#ifdef DEBUG
 			std::cout<<"Enter While"<<std::endl;
@@ -143,19 +145,18 @@ public:
 		Visit(expr);
 		bool cond=mEnv->getcond(expr);
 		Stmt *body=whilestmt->getBody();
-		while(cond)
-		{
-			if( body && isa<CompoundStmt>(body) )
-			{
-			VisitStmt(whilestmt->getBody());
+		while(cond){
+			if( body && isa<CompoundStmt>(body) ){
+				VisitStmt(whilestmt->getBody());
 			}
-        //update the condition value
+        	//update the condition value
 			Visit(expr);
 			cond=mEnv->getcond(expr);
       }
-   }    
+   }   
+
    virtual void VisitForStmt(ForStmt *forstmt ){
-	   #ifdef DEBUG
+	  	#ifdef DEBUG
 			std::cout<<"Enter For"<<std::endl;
 		#endif
 		if(mEnv->isReturn()) return;
@@ -164,22 +165,20 @@ public:
 			//std::cout<<stmt<<std::endl;
 		#endif
 		if(stmt){
-        if(isa<BinaryOperator>(stmt)){
-            BinaryOperator * bop = dyn_cast<BinaryOperator>(stmt);
-            this->VisitBinaryOperator(bop);
-        }
-        else{
-            VisitStmt(stmt);
+			if(isa<BinaryOperator>(stmt)){
+				BinaryOperator * bop = dyn_cast<BinaryOperator>(stmt);
+				this->VisitBinaryOperator(bop);
+			}
+       	 	else{
+            	VisitStmt(stmt);
 			}
 		}
-       // VisitStmt(stmt);
         Expr* expr = forstmt->getCond();
         Visit(expr);
         bool cond=mEnv->getcond(expr);
         Stmt* body=forstmt->getBody();
         while(cond){
-            if(body && isa<CompoundStmt>(body) )
-            {
+            if(body && isa<CompoundStmt>(body) ){
                 VisitStmt(body);
             }
             Stmt* stmt=forstmt->getInc();
